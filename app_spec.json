@@ -1,0 +1,1632 @@
+{
+  "title": "DigitalOcean App Platform Spec",
+  "type": "object",
+  "description": "The application specification, or app spec, is a YAML manifest that declaratively states everything about your App Platform app, including each resource and all of your app’s environment variables and configuration variables.",
+  "properties": {
+    "name": {
+      "description": "The name of the app. Must be unique across all apps in the same account.",
+      "maxLength": 32,
+      "minLength": 2,
+      "pattern": "^[a-z][a-z0-9-]{0,30}[a-z0-9]$",
+      "type": "string"
+    },
+    "region": {
+      "description": "The slug form of the geographical origin of the app. Default: `nearest available`",
+      "type": "string",
+      "enum": [
+        "ams",
+        "nyc",
+        "fra"
+      ]
+    },
+    "domains": {
+      "description": "A set of hostnames where the application will be available.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "maxLength": 253,
+            "minLength": 4,
+            "pattern": "^((xn--)?[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*\\.)+[a-zA-Z]{2,}\\.?$",
+            "description": "The hostname for the domain"
+          },
+          "type": {
+            "type": "string",
+            "default": "UNSPECIFIED",
+            "enum": [
+              "UNSPECIFIED",
+              "DEFAULT",
+              "PRIMARY",
+              "ALIAS"
+            ],
+            "description": "- DEFAULT: The default `.ondigitalocean.app` domain assigned to this app\n- PRIMARY: The primary domain for this app that is displayed as the default in the control panel, used in bindable environment variables, and any other places that reference an app's live URL. Only one domain may be set as primary.\n- ALIAS: A non-primary domain"
+          },
+          "wildcard": {
+            "type": "boolean",
+            "description": "Indicates whether the domain includes all sub-domains, in addition to the given domain"
+          },
+          "zone": {
+            "description": "Optional. If the domain uses DigitalOcean DNS and you would like App\nPlatform to automatically manage it for you, set this to the name of the\ndomain on your account.\n\nFor example, If the domain you are adding is `app.domain.com`, the zone\ncould be `domain.com`.",
+            "type": "string",
+            "format": "hostname"
+          },
+          "minimum_tls_version": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "enum": [
+              "1.2",
+              "1.3"
+            ],
+            "description": "The minimum version of TLS a client application can use to access resources for the domain.  Must be one of the following values wrapped within quotations: `\"1.2\"` or `\"1.3\"`."
+          }
+        },
+        "required": [
+          "domain"
+        ]
+      }
+    },
+    "services": {
+      "description": "Workloads which expose publicly-accessible HTTP services.",
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 32,
+                "minLength": 2,
+                "pattern": "^[a-z][a-z0-9-]{0,30}[a-z0-9]$",
+                "description": "The name. Must be unique across all components within the same app."
+              },
+              "git": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "repo_clone_url": {
+                    "type": "string",
+                    "description": "The clone URL of the repo. Example: `https://github.com/digitalocean/sample-golang.git`"
+                  }
+                }
+              },
+              "github": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "deploy_on_push": {
+                    "type": "boolean",
+                    "description": "Whether to automatically deploy new commits made to the repo"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+                  }
+                }
+              },
+              "gitlab": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "deploy_on_push": {
+                    "type": "boolean",
+                    "description": "Whether to automatically deploy new commits made to the repo"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+                  }
+                }
+              },
+              "image": {
+                "type": "object",
+                "properties": {
+                  "registry": {
+                    "type": "string",
+                    "description": "The registry name. Must be left empty for the `DOCR` registry type."
+                  },
+                  "registry_type": {
+                    "type": "string",
+                    "enum": [
+                      "DOCKER_HUB",
+                      "DOCR"
+                    ],
+                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type."
+                  },
+                  "repository": {
+                    "type": "string",
+                    "description": "The repository name."
+                  },
+                  "tag": {
+                    "type": "string",
+                    "description": "The repository tag. Defaults to `latest` if not provided.",
+                    "default": "latest"
+                  }
+                }
+              },
+              "dockerfile_path": {
+                "type": "string",
+                "description": "The path to the Dockerfile relative to the root of the repo. If set, it will be used to build this component. Otherwise, App Platform will attempt to build it using buildpacks."
+              },
+              "build_command": {
+                "type": "string",
+                "description": "An optional build command to run while building this component from source."
+              },
+              "run_command": {
+                "type": "string",
+                "description": "An optional run command to override the component's default."
+              },
+              "source_dir": {
+                "type": "string",
+                "description": "An optional path to the working directory to use for the build. For Dockerfile builds, this will be used as the build context. Must be relative to the root of the repo."
+              },
+              "envs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[_A-Za-z][_A-Za-z0-9]*$",
+                      "description": "The variable name"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "UNSET",
+                        "RUN_TIME",
+                        "BUILD_TIME",
+                        "RUN_AND_BUILD_TIME"
+                      ],
+                      "description": "- RUN_TIME: Made available only at run-time\n- BUILD_TIME: Made available only at build-time\n- RUN_AND_BUILD_TIME: Made available at both build and run-time",
+                      "default": "RUN_AND_BUILD_TIME"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "GENERAL",
+                        "SECRET"
+                      ],
+                      "description": "- GENERAL: A plain-text environment variable\n- SECRET: A secret encrypted environment variable",
+                      "default": "GENERAL"
+                    },
+                    "value": {
+                      "description": "The value. If the type is `SECRET`, the value will be encrypted on first submission. On following submissions, the encrypted value should be used.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key"
+                  ]
+                },
+                "description": "A list of environment variables made available to the component."
+              },
+              "environment_slug": {
+                "type": "string",
+                "description": "An environment slug describing the type of this app. For a full list, please refer to [the product documentation](https://www.digitalocean.com/docs/app-platform/)."
+              },
+              "log_destinations": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 42,
+                    "minLength": 2,
+                    "pattern": "^[A-Za-z0-9()\\[\\]'\"][-A-Za-z0-9_. \\/()\\[\\]]{0,40}[A-Za-z0-9()\\[\\]'\"]$"
+                  },
+                  "papertrail": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "Papertrail syslog endpoint."
+                      }
+                    },
+                    "description": "Papertrail configuration.",
+                    "required": [
+                      "endpoint"
+                    ]
+                  },
+                  "datadog": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "Datadog HTTP log intake endpoint."
+                      },
+                      "api_key": {
+                        "type": "string",
+                        "description": "Datadog API key."
+                      }
+                    },
+                    "description": "DataDog configuration.",
+                    "required": [
+                      "api_key"
+                    ]
+                  },
+                  "logtail": {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "string",
+                        "description": "Logtail token."
+                      }
+                    },
+                    "description": "Logtail configuration."
+                  }
+                },
+                "title": "Configurations for external logging.",
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "instance_count": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 1,
+                "description": "The amount of instances that this component should be scaled to. Default: 1",
+                "default": 1,
+                "maximum": 9223372036854776000
+              },
+              "instance_size_slug": {
+                "description": "The instance size to use for this component. Default: `basic-xxs`",
+                "type": "string",
+                "enum": [
+                  "basic-xxs",
+                  "basic-xs",
+                  "basic-s",
+                  "basic-m",
+                  "professional-xs",
+                  "professional-s",
+                  "professional-m",
+                  "professional-1l",
+                  "professional-l",
+                  "professional-xl"
+                ],
+                "default": "basic-xxs"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "cors": {
+                "type": "object",
+                "properties": {
+                  "allow_origins": {
+                    "type": "array",
+                    "description": "The set of allowed CORS origins.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "exact": {
+                          "type": "string",
+                          "description": "Exact string match. Only 1 of `exact`, `prefix`, or `regex` must be set.",
+                          "maxLength": 256,
+                          "minLength": 1
+                        },
+                        "prefix": {
+                          "type": "string",
+                          "description": "Prefix-based match. Only 1 of `exact`, `prefix`, or `regex` must be set.",
+                          "maxLength": 256,
+                          "minLength": 1
+                        },
+                        "regex": {
+                          "type": "string",
+                          "maxLength": 256,
+                          "minLength": 1,
+                          "description": "RE2 style regex-based match. Only 1 of `exact`, `prefix`, or `regex` must be set. For more information about RE2 syntax, see: https://github.com/google/re2/wiki/Syntax"
+                        }
+                      }
+                    }
+                  },
+                  "allow_methods": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The set of allowed HTTP methods. This configures the `Access-Control-Allow-Methods` header."
+                  },
+                  "allow_headers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The set of allowed HTTP request headers. This configures the `Access-Control-Allow-Headers` header."
+                  },
+                  "expose_headers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The set of HTTP response headers that browsers are allowed to access. This configures the `Access-Control-Expose-Headers` header."
+                  },
+                  "max_age": {
+                    "type": "string",
+                    "description": "An optional duration specifying how long browsers can cache the results of a preflight request. This configures the `Access-Control-Max-Age` header."
+                  },
+                  "allow_credentials": {
+                    "type": "boolean",
+                    "description": "Whether browsers should expose the response to the client-side JavaScript code when the request’s credentials mode is include. This configures the `Access-Control-Allow-Credentials` header."
+                  }
+                }
+              },
+              "health_check": {
+                "type": "object",
+                "properties": {
+                  "failure_threshold": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of failed health checks before considered unhealthy.",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  },
+                  "port": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "The port on which the health check will be performed. If not set, the health check will be performed on the component's http_port.",
+                    "maximum": 65535,
+                    "minimum": 1
+                  },
+                  "http_path": {
+                    "type": "string",
+                    "description": "The route path used for the HTTP health check ping. If not set, the HTTP health check will be disabled and a TCP health check used instead."
+                  },
+                  "initial_delay_seconds": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of seconds to wait before beginning health checks.",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  },
+                  "period_seconds": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of seconds to wait between health checks.",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  },
+                  "success_threshold": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of successful health checks before considered healthy.",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  },
+                  "timeout_seconds": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of seconds after which the check times out.",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                }
+              },
+              "http_port": {
+                "type": "integer",
+                "description": "The internal port on which this service's run command will listen. Default: 8080\nIf there is not an environment variable with the name `PORT`, one will be automatically added with its value set to the value of this field.",
+                "format": "int64",
+                "maximum": 65535,
+                "minimum": 1
+              },
+              "internal_ports": {
+                "type": "array",
+                "description": "The ports on which this service will listen for internal traffic.",
+                "items": {
+                  "format": "int64",
+                  "type": "integer",
+                  "minimum": -9223372036854776000,
+                  "maximum": 9223372036854776000
+                }
+              },
+              "routes": {
+                "type": "array",
+                "description": "A list of HTTP routes that should be routed to this component.",
+                "items": {
+                  "title": "A criterion for routing HTTP traffic to a component.",
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "description": "An HTTP path prefix. Paths must start with / and must be unique across all components within an app.",
+                      "type": "string"
+                    },
+                    "preserve_path_prefix": {
+                      "description": "An optional flag to preserve the path that is forwarded to the backend service. By default, the HTTP request path will be trimmed from the left when forwarded to the component. For example, a component with `path=/api` will have requests to `/api/list` trimmed to `/list`. If this value is `true`, the path will remain `/api/list`.",
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "static_sites": {
+      "description": "Content which can be rendered to static web assets.",
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 32,
+                "minLength": 2,
+                "pattern": "^[a-z][a-z0-9-]{0,30}[a-z0-9]$",
+                "description": "The name. Must be unique across all components within the same app."
+              },
+              "git": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "repo_clone_url": {
+                    "type": "string",
+                    "description": "The clone URL of the repo. Example: `https://github.com/digitalocean/sample-golang.git`"
+                  }
+                }
+              },
+              "github": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "deploy_on_push": {
+                    "type": "boolean",
+                    "description": "Whether to automatically deploy new commits made to the repo"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+                  }
+                }
+              },
+              "gitlab": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "deploy_on_push": {
+                    "type": "boolean",
+                    "description": "Whether to automatically deploy new commits made to the repo"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+                  }
+                }
+              },
+              "image": {
+                "type": "object",
+                "properties": {
+                  "registry": {
+                    "type": "string",
+                    "description": "The registry name. Must be left empty for the `DOCR` registry type."
+                  },
+                  "registry_type": {
+                    "type": "string",
+                    "enum": [
+                      "DOCKER_HUB",
+                      "DOCR"
+                    ],
+                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type."
+                  },
+                  "repository": {
+                    "type": "string",
+                    "description": "The repository name."
+                  },
+                  "tag": {
+                    "type": "string",
+                    "description": "The repository tag. Defaults to `latest` if not provided.",
+                    "default": "latest"
+                  }
+                }
+              },
+              "dockerfile_path": {
+                "type": "string",
+                "description": "The path to the Dockerfile relative to the root of the repo. If set, it will be used to build this component. Otherwise, App Platform will attempt to build it using buildpacks."
+              },
+              "build_command": {
+                "type": "string",
+                "description": "An optional build command to run while building this component from source."
+              },
+              "run_command": {
+                "type": "string",
+                "description": "An optional run command to override the component's default."
+              },
+              "source_dir": {
+                "type": "string",
+                "description": "An optional path to the working directory to use for the build. For Dockerfile builds, this will be used as the build context. Must be relative to the root of the repo."
+              },
+              "envs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[_A-Za-z][_A-Za-z0-9]*$",
+                      "description": "The variable name"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "UNSET",
+                        "RUN_TIME",
+                        "BUILD_TIME",
+                        "RUN_AND_BUILD_TIME"
+                      ],
+                      "description": "- RUN_TIME: Made available only at run-time\n- BUILD_TIME: Made available only at build-time\n- RUN_AND_BUILD_TIME: Made available at both build and run-time",
+                      "default": "RUN_AND_BUILD_TIME"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "GENERAL",
+                        "SECRET"
+                      ],
+                      "description": "- GENERAL: A plain-text environment variable\n- SECRET: A secret encrypted environment variable",
+                      "default": "GENERAL"
+                    },
+                    "value": {
+                      "description": "The value. If the type is `SECRET`, the value will be encrypted on first submission. On following submissions, the encrypted value should be used.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key"
+                  ]
+                },
+                "description": "A list of environment variables made available to the component."
+              },
+              "environment_slug": {
+                "type": "string",
+                "description": "An environment slug describing the type of this app. For a full list, please refer to [the product documentation](https://www.digitalocean.com/docs/app-platform/)."
+              },
+              "log_destinations": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 42,
+                    "minLength": 2,
+                    "pattern": "^[A-Za-z0-9()\\[\\]'\"][-A-Za-z0-9_. \\/()\\[\\]]{0,40}[A-Za-z0-9()\\[\\]'\"]$"
+                  },
+                  "papertrail": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "Papertrail syslog endpoint."
+                      }
+                    },
+                    "description": "Papertrail configuration.",
+                    "required": [
+                      "endpoint"
+                    ]
+                  },
+                  "datadog": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "Datadog HTTP log intake endpoint."
+                      },
+                      "api_key": {
+                        "type": "string",
+                        "description": "Datadog API key."
+                      }
+                    },
+                    "description": "DataDog configuration.",
+                    "required": [
+                      "api_key"
+                    ]
+                  },
+                  "logtail": {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "string",
+                        "description": "Logtail token."
+                      }
+                    },
+                    "description": "Logtail configuration."
+                  }
+                },
+                "title": "Configurations for external logging.",
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "index_document": {
+                "type": "string",
+                "description": "The name of the index document to use when serving this static site. Default: index.html",
+                "default": "index.html"
+              },
+              "error_document": {
+                "type": "string",
+                "description": "The name of the error document to use when serving this static site. Default: 404.html. If no such file exists within the built assets, App Platform will supply one.",
+                "default": "404.html"
+              },
+              "catchall_document": {
+                "type": "string",
+                "description": "The name of the document to use as the fallback for any requests to documents that are not found when serving this static site. Only 1 of `catchall_document` or `error_document` can be set."
+              },
+              "output_dir": {
+                "type": "string",
+                "description": "An optional path to where the built assets will be located, relative to the build context. If not set, App Platform will automatically scan for these directory names: `_static`, `dist`, `public`, `build`."
+              },
+              "cors": {
+                "type": "object",
+                "properties": {
+                  "allow_origins": {
+                    "type": "array",
+                    "description": "The set of allowed CORS origins.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "exact": {
+                          "type": "string",
+                          "description": "Exact string match. Only 1 of `exact`, `prefix`, or `regex` must be set.",
+                          "maxLength": 256,
+                          "minLength": 1
+                        },
+                        "prefix": {
+                          "type": "string",
+                          "description": "Prefix-based match. Only 1 of `exact`, `prefix`, or `regex` must be set.",
+                          "maxLength": 256,
+                          "minLength": 1
+                        },
+                        "regex": {
+                          "type": "string",
+                          "maxLength": 256,
+                          "minLength": 1,
+                          "description": "RE2 style regex-based match. Only 1 of `exact`, `prefix`, or `regex` must be set. For more information about RE2 syntax, see: https://github.com/google/re2/wiki/Syntax"
+                        }
+                      }
+                    }
+                  },
+                  "allow_methods": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The set of allowed HTTP methods. This configures the `Access-Control-Allow-Methods` header."
+                  },
+                  "allow_headers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The set of allowed HTTP request headers. This configures the `Access-Control-Allow-Headers` header."
+                  },
+                  "expose_headers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The set of HTTP response headers that browsers are allowed to access. This configures the `Access-Control-Expose-Headers` header."
+                  },
+                  "max_age": {
+                    "type": "string",
+                    "description": "An optional duration specifying how long browsers can cache the results of a preflight request. This configures the `Access-Control-Max-Age` header."
+                  },
+                  "allow_credentials": {
+                    "type": "boolean",
+                    "description": "Whether browsers should expose the response to the client-side JavaScript code when the request’s credentials mode is include. This configures the `Access-Control-Allow-Credentials` header."
+                  }
+                }
+              },
+              "routes": {
+                "type": "array",
+                "items": {
+                  "title": "A criterion for routing HTTP traffic to a component.",
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "description": "An HTTP path prefix. Paths must start with / and must be unique across all components within an app.",
+                      "type": "string"
+                    },
+                    "preserve_path_prefix": {
+                      "description": "An optional flag to preserve the path that is forwarded to the backend service. By default, the HTTP request path will be trimmed from the left when forwarded to the component. For example, a component with `path=/api` will have requests to `/api/list` trimmed to `/list`. If this value is `true`, the path will remain `/api/list`.",
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "description": "A list of HTTP routes that should be routed to this component."
+              }
+            }
+          }
+        ],
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "jobs": {
+      "description": "Pre and post deployment workloads which do not expose publicly-accessible HTTP routes.",
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 32,
+                "minLength": 2,
+                "pattern": "^[a-z][a-z0-9-]{0,30}[a-z0-9]$",
+                "description": "The name. Must be unique across all components within the same app."
+              },
+              "git": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "repo_clone_url": {
+                    "type": "string",
+                    "description": "The clone URL of the repo. Example: `https://github.com/digitalocean/sample-golang.git`"
+                  }
+                }
+              },
+              "github": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "deploy_on_push": {
+                    "type": "boolean",
+                    "description": "Whether to automatically deploy new commits made to the repo"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+                  }
+                }
+              },
+              "gitlab": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "deploy_on_push": {
+                    "type": "boolean",
+                    "description": "Whether to automatically deploy new commits made to the repo"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+                  }
+                }
+              },
+              "image": {
+                "type": "object",
+                "properties": {
+                  "registry": {
+                    "type": "string",
+                    "description": "The registry name. Must be left empty for the `DOCR` registry type."
+                  },
+                  "registry_type": {
+                    "type": "string",
+                    "enum": [
+                      "DOCKER_HUB",
+                      "DOCR"
+                    ],
+                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type."
+                  },
+                  "repository": {
+                    "type": "string",
+                    "description": "The repository name."
+                  },
+                  "tag": {
+                    "type": "string",
+                    "description": "The repository tag. Defaults to `latest` if not provided.",
+                    "default": "latest"
+                  }
+                }
+              },
+              "dockerfile_path": {
+                "type": "string",
+                "description": "The path to the Dockerfile relative to the root of the repo. If set, it will be used to build this component. Otherwise, App Platform will attempt to build it using buildpacks."
+              },
+              "build_command": {
+                "type": "string",
+                "description": "An optional build command to run while building this component from source."
+              },
+              "run_command": {
+                "type": "string",
+                "description": "An optional run command to override the component's default."
+              },
+              "source_dir": {
+                "type": "string",
+                "description": "An optional path to the working directory to use for the build. For Dockerfile builds, this will be used as the build context. Must be relative to the root of the repo."
+              },
+              "envs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[_A-Za-z][_A-Za-z0-9]*$",
+                      "description": "The variable name"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "UNSET",
+                        "RUN_TIME",
+                        "BUILD_TIME",
+                        "RUN_AND_BUILD_TIME"
+                      ],
+                      "description": "- RUN_TIME: Made available only at run-time\n- BUILD_TIME: Made available only at build-time\n- RUN_AND_BUILD_TIME: Made available at both build and run-time",
+                      "default": "RUN_AND_BUILD_TIME"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "GENERAL",
+                        "SECRET"
+                      ],
+                      "description": "- GENERAL: A plain-text environment variable\n- SECRET: A secret encrypted environment variable",
+                      "default": "GENERAL"
+                    },
+                    "value": {
+                      "description": "The value. If the type is `SECRET`, the value will be encrypted on first submission. On following submissions, the encrypted value should be used.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key"
+                  ]
+                },
+                "description": "A list of environment variables made available to the component."
+              },
+              "environment_slug": {
+                "type": "string",
+                "description": "An environment slug describing the type of this app. For a full list, please refer to [the product documentation](https://www.digitalocean.com/docs/app-platform/)."
+              },
+              "log_destinations": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 42,
+                    "minLength": 2,
+                    "pattern": "^[A-Za-z0-9()\\[\\]'\"][-A-Za-z0-9_. \\/()\\[\\]]{0,40}[A-Za-z0-9()\\[\\]'\"]$"
+                  },
+                  "papertrail": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "Papertrail syslog endpoint."
+                      }
+                    },
+                    "description": "Papertrail configuration.",
+                    "required": [
+                      "endpoint"
+                    ]
+                  },
+                  "datadog": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "Datadog HTTP log intake endpoint."
+                      },
+                      "api_key": {
+                        "type": "string",
+                        "description": "Datadog API key."
+                      }
+                    },
+                    "description": "DataDog configuration.",
+                    "required": [
+                      "api_key"
+                    ]
+                  },
+                  "logtail": {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "string",
+                        "description": "Logtail token."
+                      }
+                    },
+                    "description": "Logtail configuration."
+                  }
+                },
+                "title": "Configurations for external logging.",
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "instance_count": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 1,
+                "description": "The amount of instances that this component should be scaled to. Default: 1",
+                "default": 1,
+                "maximum": 9223372036854776000
+              },
+              "instance_size_slug": {
+                "description": "The instance size to use for this component. Default: `basic-xxs`",
+                "type": "string",
+                "enum": [
+                  "basic-xxs",
+                  "basic-xs",
+                  "basic-s",
+                  "basic-m",
+                  "professional-xs",
+                  "professional-s",
+                  "professional-m",
+                  "professional-1l",
+                  "professional-l",
+                  "professional-xl"
+                ],
+                "default": "basic-xxs"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "UNSPECIFIED",
+                  "PRE_DEPLOY",
+                  "POST_DEPLOY",
+                  "FAILED_DEPLOY"
+                ],
+                "description": "- UNSPECIFIED: Default job type, will auto-complete to POST_DEPLOY kind.\n- PRE_DEPLOY: Indicates a job that runs before an app deployment.\n- POST_DEPLOY: Indicates a job that runs after an app deployment.\n- FAILED_DEPLOY: Indicates a job that runs after a component fails to deploy.",
+                "default": "UNSPECIFIED"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "workers": {
+      "description": "Workloads which do not expose publicly-accessible HTTP services.",
+      "items": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 32,
+                "minLength": 2,
+                "pattern": "^[a-z][a-z0-9-]{0,30}[a-z0-9]$",
+                "description": "The name. Must be unique across all components within the same app."
+              },
+              "git": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "repo_clone_url": {
+                    "type": "string",
+                    "description": "The clone URL of the repo. Example: `https://github.com/digitalocean/sample-golang.git`"
+                  }
+                }
+              },
+              "github": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "deploy_on_push": {
+                    "type": "boolean",
+                    "description": "Whether to automatically deploy new commits made to the repo"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+                  }
+                }
+              },
+              "gitlab": {
+                "type": "object",
+                "properties": {
+                  "branch": {
+                    "type": "string",
+                    "description": "The name of the branch to use"
+                  },
+                  "deploy_on_push": {
+                    "type": "boolean",
+                    "description": "Whether to automatically deploy new commits made to the repo"
+                  },
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+                  }
+                }
+              },
+              "image": {
+                "type": "object",
+                "properties": {
+                  "registry": {
+                    "type": "string",
+                    "description": "The registry name. Must be left empty for the `DOCR` registry type."
+                  },
+                  "registry_type": {
+                    "type": "string",
+                    "enum": [
+                      "DOCKER_HUB",
+                      "DOCR"
+                    ],
+                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type."
+                  },
+                  "repository": {
+                    "type": "string",
+                    "description": "The repository name."
+                  },
+                  "tag": {
+                    "type": "string",
+                    "description": "The repository tag. Defaults to `latest` if not provided.",
+                    "default": "latest"
+                  }
+                }
+              },
+              "dockerfile_path": {
+                "type": "string",
+                "description": "The path to the Dockerfile relative to the root of the repo. If set, it will be used to build this component. Otherwise, App Platform will attempt to build it using buildpacks."
+              },
+              "build_command": {
+                "type": "string",
+                "description": "An optional build command to run while building this component from source."
+              },
+              "run_command": {
+                "type": "string",
+                "description": "An optional run command to override the component's default."
+              },
+              "source_dir": {
+                "type": "string",
+                "description": "An optional path to the working directory to use for the build. For Dockerfile builds, this will be used as the build context. Must be relative to the root of the repo."
+              },
+              "envs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[_A-Za-z][_A-Za-z0-9]*$",
+                      "description": "The variable name"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "UNSET",
+                        "RUN_TIME",
+                        "BUILD_TIME",
+                        "RUN_AND_BUILD_TIME"
+                      ],
+                      "description": "- RUN_TIME: Made available only at run-time\n- BUILD_TIME: Made available only at build-time\n- RUN_AND_BUILD_TIME: Made available at both build and run-time",
+                      "default": "RUN_AND_BUILD_TIME"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "GENERAL",
+                        "SECRET"
+                      ],
+                      "description": "- GENERAL: A plain-text environment variable\n- SECRET: A secret encrypted environment variable",
+                      "default": "GENERAL"
+                    },
+                    "value": {
+                      "description": "The value. If the type is `SECRET`, the value will be encrypted on first submission. On following submissions, the encrypted value should be used.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key"
+                  ]
+                },
+                "description": "A list of environment variables made available to the component."
+              },
+              "environment_slug": {
+                "type": "string",
+                "description": "An environment slug describing the type of this app. For a full list, please refer to [the product documentation](https://www.digitalocean.com/docs/app-platform/)."
+              },
+              "log_destinations": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 42,
+                    "minLength": 2,
+                    "pattern": "^[A-Za-z0-9()\\[\\]'\"][-A-Za-z0-9_. \\/()\\[\\]]{0,40}[A-Za-z0-9()\\[\\]'\"]$"
+                  },
+                  "papertrail": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "Papertrail syslog endpoint."
+                      }
+                    },
+                    "description": "Papertrail configuration.",
+                    "required": [
+                      "endpoint"
+                    ]
+                  },
+                  "datadog": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "Datadog HTTP log intake endpoint."
+                      },
+                      "api_key": {
+                        "type": "string",
+                        "description": "Datadog API key."
+                      }
+                    },
+                    "description": "DataDog configuration.",
+                    "required": [
+                      "api_key"
+                    ]
+                  },
+                  "logtail": {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "string",
+                        "description": "Logtail token."
+                      }
+                    },
+                    "description": "Logtail configuration."
+                  }
+                },
+                "title": "Configurations for external logging.",
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "instance_count": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 1,
+                "description": "The amount of instances that this component should be scaled to. Default: 1",
+                "default": 1,
+                "maximum": 9223372036854776000
+              },
+              "instance_size_slug": {
+                "description": "The instance size to use for this component. Default: `basic-xxs`",
+                "type": "string",
+                "enum": [
+                  "basic-xxs",
+                  "basic-xs",
+                  "basic-s",
+                  "basic-m",
+                  "professional-xs",
+                  "professional-s",
+                  "professional-m",
+                  "professional-1l",
+                  "professional-l",
+                  "professional-xl"
+                ],
+                "default": "basic-xxs"
+              }
+            }
+          }
+        ],
+        "required": [
+          "name"
+        ]
+      },
+      "type": "array"
+    },
+    "functions": {
+      "description": "Workloads which expose publicly-accessible HTTP services via Functions Components.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cors": {
+            "type": "object",
+            "properties": {
+              "allow_origins": {
+                "type": "array",
+                "description": "The set of allowed CORS origins.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "exact": {
+                      "type": "string",
+                      "description": "Exact string match. Only 1 of `exact`, `prefix`, or `regex` must be set.",
+                      "maxLength": 256,
+                      "minLength": 1
+                    },
+                    "prefix": {
+                      "type": "string",
+                      "description": "Prefix-based match. Only 1 of `exact`, `prefix`, or `regex` must be set.",
+                      "maxLength": 256,
+                      "minLength": 1
+                    },
+                    "regex": {
+                      "type": "string",
+                      "maxLength": 256,
+                      "minLength": 1,
+                      "description": "RE2 style regex-based match. Only 1 of `exact`, `prefix`, or `regex` must be set. For more information about RE2 syntax, see: https://github.com/google/re2/wiki/Syntax"
+                    }
+                  }
+                }
+              },
+              "allow_methods": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The set of allowed HTTP methods. This configures the `Access-Control-Allow-Methods` header."
+              },
+              "allow_headers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The set of allowed HTTP request headers. This configures the `Access-Control-Allow-Headers` header."
+              },
+              "expose_headers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The set of HTTP response headers that browsers are allowed to access. This configures the `Access-Control-Expose-Headers` header."
+              },
+              "max_age": {
+                "type": "string",
+                "description": "An optional duration specifying how long browsers can cache the results of a preflight request. This configures the `Access-Control-Max-Age` header."
+              },
+              "allow_credentials": {
+                "type": "boolean",
+                "description": "Whether browsers should expose the response to the client-side JavaScript code when the request’s credentials mode is include. This configures the `Access-Control-Allow-Credentials` header."
+              }
+            }
+          },
+          "routes": {
+            "type": "array",
+            "description": "A list of HTTP routes that should be routed to this component.",
+            "items": {
+              "title": "A criterion for routing HTTP traffic to a component.",
+              "type": "object",
+              "properties": {
+                "path": {
+                  "description": "An HTTP path prefix. Paths must start with / and must be unique across all components within an app.",
+                  "type": "string"
+                },
+                "preserve_path_prefix": {
+                  "description": "An optional flag to preserve the path that is forwarded to the backend service. By default, the HTTP request path will be trimmed from the left when forwarded to the component. For example, a component with `path=/api` will have requests to `/api/list` trimmed to `/list`. If this value is `true`, the path will remain `/api/list`.",
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 2,
+            "pattern": "^[a-z][a-z0-9-]{0,30}[a-z0-9]$",
+            "description": "The name. Must be unique across all components within the same app."
+          },
+          "source_dir": {
+            "type": "string",
+            "description": "An optional path to the working directory to use for the build. For Dockerfile builds, this will be used as the build context. Must be relative to the root of the repo."
+          },
+          "alerts": {
+            "type": "array",
+            "items": {
+              "properties": {
+                "rule": {
+                  "default": "UNSPECIFIED_RULE",
+                  "enum": [
+                    "UNSPECIFIED_RULE",
+                    "CPU_UTILIZATION",
+                    "MEM_UTILIZATION",
+                    "RESTART_COUNT",
+                    "DEPLOYMENT_FAILED",
+                    "DEPLOYMENT_LIVE",
+                    "DOMAIN_FAILED",
+                    "DOMAIN_LIVE",
+                    "FUNCTIONS_ACTIVATION_COUNT",
+                    "FUNCTIONS_AVERAGE_DURATION_MS",
+                    "FUNCTIONS_ERROR_RATE_PER_MINUTE",
+                    "FUNCTIONS_AVERAGE_WAIT_TIME_MS",
+                    "FUNCTIONS_ERROR_COUNT",
+                    "FUNCTIONS_GB_RATE_PER_SECOND"
+                  ],
+                  "type": "string"
+                },
+                "disabled": {
+                  "description": "Is the alert disabled?",
+                  "type": "boolean"
+                },
+                "operator": {
+                  "default": "UNSPECIFIED_OPERATOR",
+                  "enum": [
+                    "UNSPECIFIED_OPERATOR",
+                    "GREATER_THAN",
+                    "LESS_THAN"
+                  ],
+                  "type": "string"
+                },
+                "value": {
+                  "description": "Threshold value for alert",
+                  "format": "float",
+                  "type": "number",
+                  "minimum": -3.402823669209385e+38,
+                  "maximum": 3.402823669209385e+38
+                },
+                "window": {
+                  "default": "UNSPECIFIED_WINDOW",
+                  "enum": [
+                    "UNSPECIFIED_WINDOW",
+                    "FIVE_MINUTES",
+                    "TEN_MINUTES",
+                    "THIRTY_MINUTES",
+                    "ONE_HOUR"
+                  ],
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "envs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[_A-Za-z][_A-Za-z0-9]*$",
+                  "description": "The variable name"
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "UNSET",
+                    "RUN_TIME",
+                    "BUILD_TIME",
+                    "RUN_AND_BUILD_TIME"
+                  ],
+                  "description": "- RUN_TIME: Made available only at run-time\n- BUILD_TIME: Made available only at build-time\n- RUN_AND_BUILD_TIME: Made available at both build and run-time",
+                  "default": "RUN_AND_BUILD_TIME"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "GENERAL",
+                    "SECRET"
+                  ],
+                  "description": "- GENERAL: A plain-text environment variable\n- SECRET: A secret encrypted environment variable",
+                  "default": "GENERAL"
+                },
+                "value": {
+                  "description": "The value. If the type is `SECRET`, the value will be encrypted on first submission. On following submissions, the encrypted value should be used.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key"
+              ]
+            },
+            "description": "A list of environment variables made available to the component."
+          },
+          "git": {
+            "type": "object",
+            "properties": {
+              "branch": {
+                "type": "string",
+                "description": "The name of the branch to use"
+              },
+              "repo_clone_url": {
+                "type": "string",
+                "description": "The clone URL of the repo. Example: `https://github.com/digitalocean/sample-golang.git`"
+              }
+            }
+          },
+          "github": {
+            "type": "object",
+            "properties": {
+              "branch": {
+                "type": "string",
+                "description": "The name of the branch to use"
+              },
+              "deploy_on_push": {
+                "type": "boolean",
+                "description": "Whether to automatically deploy new commits made to the repo"
+              },
+              "repo": {
+                "type": "string",
+                "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+              }
+            }
+          },
+          "gitlab": {
+            "type": "object",
+            "properties": {
+              "branch": {
+                "type": "string",
+                "description": "The name of the branch to use"
+              },
+              "deploy_on_push": {
+                "type": "boolean",
+                "description": "Whether to automatically deploy new commits made to the repo"
+              },
+              "repo": {
+                "type": "string",
+                "description": "The name of the repo in the format owner/repo. Example: `digitalocean/sample-golang`"
+              }
+            }
+          },
+          "log_destinations": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 42,
+                "minLength": 2,
+                "pattern": "^[A-Za-z0-9()\\[\\]'\"][-A-Za-z0-9_. \\/()\\[\\]]{0,40}[A-Za-z0-9()\\[\\]'\"]$"
+              },
+              "papertrail": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "description": "Papertrail syslog endpoint."
+                  }
+                },
+                "description": "Papertrail configuration.",
+                "required": [
+                  "endpoint"
+                ]
+              },
+              "datadog": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "description": "Datadog HTTP log intake endpoint."
+                  },
+                  "api_key": {
+                    "type": "string",
+                    "description": "Datadog API key."
+                  }
+                },
+                "description": "DataDog configuration.",
+                "required": [
+                  "api_key"
+                ]
+              },
+              "logtail": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "Logtail token."
+                  }
+                },
+                "description": "Logtail configuration."
+              }
+            },
+            "title": "Configurations for external logging.",
+            "required": [
+              "name"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "type": "array"
+    },
+    "databases": {
+      "description": "Database instances which can provide persistence to workloads within the\napplication.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cluster_name": {
+            "description": "The name of the underlying DigitalOcean DBaaS cluster. This is required for production databases. For dev databases, if cluster_name is not set, a new cluster will be provisioned.",
+            "type": "string"
+          },
+          "db_name": {
+            "description": "The name of the MySQL or PostgreSQL database to configure.",
+            "type": "string"
+          },
+          "db_user": {
+            "description": "The name of the MySQL or PostgreSQL user to configure.",
+            "type": "string"
+          },
+          "engine": {
+            "type": "string",
+            "default": "UNSET",
+            "enum": [
+              "UNSET",
+              "MYSQL",
+              "PG",
+              "REDIS"
+            ],
+            "description": "- MYSQL: MySQL\n- PG: PostgreSQL\n- REDIS: Redis"
+          },
+          "name": {
+            "description": "The name. Must be unique across all components within the same app.",
+            "maxLength": 32,
+            "minLength": 2,
+            "pattern": "^[a-z][a-z0-9-]{0,30}[a-z0-9]$",
+            "type": "string"
+          },
+          "production": {
+            "description": "Whether this is a production or dev database.",
+            "type": "boolean"
+          },
+          "version": {
+            "description": "The version of the database engine",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "$schema": "http://json-schema.org/draft-04/schema#"
+}

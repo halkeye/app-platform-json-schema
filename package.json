@@ -1,0 +1,35 @@
+{
+  "dependencies": {
+    "@apidevtools/swagger-parser": "^10.1.0",
+    "@openapi-contrib/openapi-schema-to-json-schema": "^3.2.0",
+    "minimist": "^1.2.7"
+  },
+  "name": "app-platform-json-schema",
+  "version": "0.0.1",
+  "description": "Tiny utility to generate a JSON Schema for the DigitalOcean App Spec from OpenAPI.",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewsomething/app-platform-json-schema.git"
+  },
+  "keywords": [
+    "openapi",
+    "json",
+    "schema",
+    "digitalocean",
+    "app",
+    "platform",
+    "app",
+    "spec"
+  ],
+  "author": "Andrew Starr-Bochicchio",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/andrewsomething/app-platform-json-schema/issues"
+  },
+  "homepage": "https://github.com/andrewsomething/app-platform-json-schema#readme"
+}
