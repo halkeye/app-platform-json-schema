@@ -25,7 +25,7 @@ var argv = parseArgs(process.argv.slice(2));
 var specFile = argv.spec || specDefault
 var output = argv.output || outputDefault
 
-if (argv.help) {
+if (argv.help || argv.h) {
   console.log(`Usage: app-platform-json-schema [options]
 
 Options:
