@@ -13,3 +13,11 @@ Options:
 
 The outputted JSON Schema is suitable for use with the [Red Hat VS Code YAML plugin](https://github.com/redhat-developer/vscode-yaml#associating-a-schema-to-a-glob-pattern-via-yamlschemas)
 to provide validation and auto-completion when editing an [App Spec for DigitalOcean's App Platform](https://docs.digitalocean.com/products/app-platform/reference/app-spec/).
+
+With the YAML plugin installed, you can associate the schema with `app.yaml` and `app.yml` files by adding the following to your VS Code [user and workspace settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings):
+
+```json
+    "yaml.schemas": {
+      "https://raw.githubusercontent.com/andrewsomething/app-platform-json-schema/main/app_spec.json": ["app.yaml", "app.yml"],
+    },
+```
