@@ -147,9 +147,14 @@
                     "type": "string",
                     "enum": [
                       "DOCKER_HUB",
-                      "DOCR"
+                      "DOCR",
+                      "GHCR"
                     ],
-                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type."
+                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type.\n- GHCR: The Github container registry type."
+                  },
+                  "registry_credentials": {
+                    "type": "string",
+                    "description": "The credentials to be able to pull the image. The value will be encrypted on first submission. On following submissions, the encrypted value should be used.\n- \"$username:$access_token\" for registries of type `DOCKER_HUB`.\n- \"$username:$access_token\" for registries of type `GHCR`."
                   },
                   "repository": {
                     "type": "string",
@@ -284,6 +289,42 @@
                       }
                     },
                     "description": "Logtail configuration."
+                  },
+                  "open_search": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "OpenSearch API Endpoint. Only HTTPS is supported. Format: `https://<host>:<port>`."
+                      },
+                      "basic_auth": {
+                        "type": "object",
+                        "properties": {
+                          "user": {
+                            "type": "string",
+                            "description": "Username to authenticate with."
+                          },
+                          "password": {
+                            "type": "string",
+                            "description": "Password for user defined in User."
+                          }
+                        },
+                        "description": "Configure Username and/or Password for Basic authentication.",
+                        "required": [
+                          "user",
+                          "password"
+                        ]
+                      },
+                      "index_name": {
+                        "type": "string",
+                        "default": "logs",
+                        "description": "The index name to use for the logs. If not set, the default index name is \"logs\"."
+                      }
+                    },
+                    "description": "OpenSearch configuration.",
+                    "required": [
+                      "endpoint"
+                    ]
                   }
                 },
                 "title": "Configurations for external logging.",
@@ -300,26 +341,68 @@
                 "type": "integer",
                 "format": "int64",
                 "minimum": 1,
-                "description": "The amount of instances that this component should be scaled to. Default: 1",
+                "description": "The amount of instances that this component should be scaled to. Default: 1. Must not be set if autoscaling is used.",
                 "default": 1,
                 "maximum": 9223372036854776000
               },
               "instance_size_slug": {
-                "description": "The instance size to use for this component. Default: `basic-xxs`",
+                "description": "The instance size to use for this component. Default: `apps-s-1vcpu-0.5gb`",
                 "type": "string",
                 "enum": [
-                  "basic-xxs",
-                  "basic-xs",
-                  "basic-s",
-                  "basic-m",
-                  "professional-xs",
-                  "professional-s",
-                  "professional-m",
-                  "professional-1l",
-                  "professional-l",
-                  "professional-xl"
+                  "apps-s-1vcpu-0.5gb",
+                  "apps-s-1vcpu-1gb-fixed",
+                  "apps-s-1vcpu-1gb",
+                  "apps-s-1vcpu-2gb",
+                  "apps-s-2vcpu-4gb",
+                  "apps-d-1vcpu-0.5gb",
+                  "apps-d-1vcpu-1gb",
+                  "apps-d-1vcpu-2gb",
+                  "apps-d-1vcpu-4gb",
+                  "apps-d-2vcpu-4gb",
+                  "apps-d-2vcpu-8gb",
+                  "apps-d-4vcpu-8gb",
+                  "apps-d-4vcpu-16gb",
+                  "apps-d-8vcpu-32gb"
                 ],
-                "default": "basic-xxs"
+                "default": "apps-s-1vcpu-0.5gb"
+              },
+              "autoscaling": {
+                "description": "Configuration for automatically scaling this component based on metrics.",
+                "type": "object",
+                "properties": {
+                  "min_instance_count": {
+                    "description": "The minimum amount of instances for this component. Must be less than max_instance_count.",
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 1
+                  },
+                  "max_instance_count": {
+                    "description": "The maximum amount of instances for this component. Must be more than min_instance_count.",
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 1
+                  },
+                  "metrics": {
+                    "description": "The metrics that the component is scaled on.",
+                    "type": "object",
+                    "properties": {
+                      "cpu": {
+                        "description": "Settings for scaling the component based on CPU utilization.",
+                        "type": "object",
+                        "properties": {
+                          "percent": {
+                            "description": "The average target CPU utilization for the component.",
+                            "type": "integer",
+                            "format": "uint32",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 80
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -480,6 +563,25 @@
                     }
                   }
                 }
+              },
+              "termination": {
+                "type": "object",
+                "properties": {
+                  "drain_seconds": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of seconds to wait between selecting a container instance for termination and issuing the TERM signal. Selecting a container instance for termination begins an asynchronous drain of new requests on upstream load-balancers. (Default 15)",
+                    "maximum": 110,
+                    "minimum": 1
+                  },
+                  "grace_period_seconds": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of seconds to wait between sending a TERM signal to a container and issuing a KILL which causes immediate shutdown. (Default 120)",
+                    "maximum": 600,
+                    "minimum": 1
+                  }
+                }
               }
             }
           }
@@ -559,9 +661,14 @@
                     "type": "string",
                     "enum": [
                       "DOCKER_HUB",
-                      "DOCR"
+                      "DOCR",
+                      "GHCR"
                     ],
-                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type."
+                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type.\n- GHCR: The Github container registry type."
+                  },
+                  "registry_credentials": {
+                    "type": "string",
+                    "description": "The credentials to be able to pull the image. The value will be encrypted on first submission. On following submissions, the encrypted value should be used.\n- \"$username:$access_token\" for registries of type `DOCKER_HUB`.\n- \"$username:$access_token\" for registries of type `GHCR`."
                   },
                   "repository": {
                     "type": "string",
@@ -696,6 +803,42 @@
                       }
                     },
                     "description": "Logtail configuration."
+                  },
+                  "open_search": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "OpenSearch API Endpoint. Only HTTPS is supported. Format: `https://<host>:<port>`."
+                      },
+                      "basic_auth": {
+                        "type": "object",
+                        "properties": {
+                          "user": {
+                            "type": "string",
+                            "description": "Username to authenticate with."
+                          },
+                          "password": {
+                            "type": "string",
+                            "description": "Password for user defined in User."
+                          }
+                        },
+                        "description": "Configure Username and/or Password for Basic authentication.",
+                        "required": [
+                          "user",
+                          "password"
+                        ]
+                      },
+                      "index_name": {
+                        "type": "string",
+                        "default": "logs",
+                        "description": "The index name to use for the logs. If not set, the default index name is \"logs\"."
+                      }
+                    },
+                    "description": "OpenSearch configuration.",
+                    "required": [
+                      "endpoint"
+                    ]
                   }
                 },
                 "title": "Configurations for external logging.",
@@ -894,9 +1037,14 @@
                     "type": "string",
                     "enum": [
                       "DOCKER_HUB",
-                      "DOCR"
+                      "DOCR",
+                      "GHCR"
                     ],
-                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type."
+                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type.\n- GHCR: The Github container registry type."
+                  },
+                  "registry_credentials": {
+                    "type": "string",
+                    "description": "The credentials to be able to pull the image. The value will be encrypted on first submission. On following submissions, the encrypted value should be used.\n- \"$username:$access_token\" for registries of type `DOCKER_HUB`.\n- \"$username:$access_token\" for registries of type `GHCR`."
                   },
                   "repository": {
                     "type": "string",
@@ -1031,6 +1179,42 @@
                       }
                     },
                     "description": "Logtail configuration."
+                  },
+                  "open_search": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "OpenSearch API Endpoint. Only HTTPS is supported. Format: `https://<host>:<port>`."
+                      },
+                      "basic_auth": {
+                        "type": "object",
+                        "properties": {
+                          "user": {
+                            "type": "string",
+                            "description": "Username to authenticate with."
+                          },
+                          "password": {
+                            "type": "string",
+                            "description": "Password for user defined in User."
+                          }
+                        },
+                        "description": "Configure Username and/or Password for Basic authentication.",
+                        "required": [
+                          "user",
+                          "password"
+                        ]
+                      },
+                      "index_name": {
+                        "type": "string",
+                        "default": "logs",
+                        "description": "The index name to use for the logs. If not set, the default index name is \"logs\"."
+                      }
+                    },
+                    "description": "OpenSearch configuration.",
+                    "required": [
+                      "endpoint"
+                    ]
                   }
                 },
                 "title": "Configurations for external logging.",
@@ -1047,26 +1231,68 @@
                 "type": "integer",
                 "format": "int64",
                 "minimum": 1,
-                "description": "The amount of instances that this component should be scaled to. Default: 1",
+                "description": "The amount of instances that this component should be scaled to. Default: 1. Must not be set if autoscaling is used.",
                 "default": 1,
                 "maximum": 9223372036854776000
               },
               "instance_size_slug": {
-                "description": "The instance size to use for this component. Default: `basic-xxs`",
+                "description": "The instance size to use for this component. Default: `apps-s-1vcpu-0.5gb`",
                 "type": "string",
                 "enum": [
-                  "basic-xxs",
-                  "basic-xs",
-                  "basic-s",
-                  "basic-m",
-                  "professional-xs",
-                  "professional-s",
-                  "professional-m",
-                  "professional-1l",
-                  "professional-l",
-                  "professional-xl"
+                  "apps-s-1vcpu-0.5gb",
+                  "apps-s-1vcpu-1gb-fixed",
+                  "apps-s-1vcpu-1gb",
+                  "apps-s-1vcpu-2gb",
+                  "apps-s-2vcpu-4gb",
+                  "apps-d-1vcpu-0.5gb",
+                  "apps-d-1vcpu-1gb",
+                  "apps-d-1vcpu-2gb",
+                  "apps-d-1vcpu-4gb",
+                  "apps-d-2vcpu-4gb",
+                  "apps-d-2vcpu-8gb",
+                  "apps-d-4vcpu-8gb",
+                  "apps-d-4vcpu-16gb",
+                  "apps-d-8vcpu-32gb"
                 ],
-                "default": "basic-xxs"
+                "default": "apps-s-1vcpu-0.5gb"
+              },
+              "autoscaling": {
+                "description": "Configuration for automatically scaling this component based on metrics.",
+                "type": "object",
+                "properties": {
+                  "min_instance_count": {
+                    "description": "The minimum amount of instances for this component. Must be less than max_instance_count.",
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 1
+                  },
+                  "max_instance_count": {
+                    "description": "The maximum amount of instances for this component. Must be more than min_instance_count.",
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 1
+                  },
+                  "metrics": {
+                    "description": "The metrics that the component is scaled on.",
+                    "type": "object",
+                    "properties": {
+                      "cpu": {
+                        "description": "Settings for scaling the component based on CPU utilization.",
+                        "type": "object",
+                        "properties": {
+                          "percent": {
+                            "description": "The average target CPU utilization for the component.",
+                            "type": "integer",
+                            "format": "uint32",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 80
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1083,6 +1309,18 @@
                 ],
                 "description": "- UNSPECIFIED: Default job type, will auto-complete to POST_DEPLOY kind.\n- PRE_DEPLOY: Indicates a job that runs before an app deployment.\n- POST_DEPLOY: Indicates a job that runs after an app deployment.\n- FAILED_DEPLOY: Indicates a job that runs after a component fails to deploy.",
                 "default": "UNSPECIFIED"
+              },
+              "termination": {
+                "type": "object",
+                "properties": {
+                  "grace_period_seconds": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of seconds to wait between sending a TERM signal to a container and issuing a KILL which causes immediate shutdown. (Default 120)",
+                    "maximum": 600,
+                    "minimum": 1
+                  }
+                }
               }
             }
           }
@@ -1161,9 +1399,14 @@
                     "type": "string",
                     "enum": [
                       "DOCKER_HUB",
-                      "DOCR"
+                      "DOCR",
+                      "GHCR"
                     ],
-                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type."
+                    "description": "- DOCKER_HUB: The DockerHub container registry type.\n- DOCR: The DigitalOcean container registry type.\n- GHCR: The Github container registry type."
+                  },
+                  "registry_credentials": {
+                    "type": "string",
+                    "description": "The credentials to be able to pull the image. The value will be encrypted on first submission. On following submissions, the encrypted value should be used.\n- \"$username:$access_token\" for registries of type `DOCKER_HUB`.\n- \"$username:$access_token\" for registries of type `GHCR`."
                   },
                   "repository": {
                     "type": "string",
@@ -1298,6 +1541,42 @@
                       }
                     },
                     "description": "Logtail configuration."
+                  },
+                  "open_search": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string",
+                        "description": "OpenSearch API Endpoint. Only HTTPS is supported. Format: `https://<host>:<port>`."
+                      },
+                      "basic_auth": {
+                        "type": "object",
+                        "properties": {
+                          "user": {
+                            "type": "string",
+                            "description": "Username to authenticate with."
+                          },
+                          "password": {
+                            "type": "string",
+                            "description": "Password for user defined in User."
+                          }
+                        },
+                        "description": "Configure Username and/or Password for Basic authentication.",
+                        "required": [
+                          "user",
+                          "password"
+                        ]
+                      },
+                      "index_name": {
+                        "type": "string",
+                        "default": "logs",
+                        "description": "The index name to use for the logs. If not set, the default index name is \"logs\"."
+                      }
+                    },
+                    "description": "OpenSearch configuration.",
+                    "required": [
+                      "endpoint"
+                    ]
                   }
                 },
                 "title": "Configurations for external logging.",
@@ -1314,26 +1593,85 @@
                 "type": "integer",
                 "format": "int64",
                 "minimum": 1,
-                "description": "The amount of instances that this component should be scaled to. Default: 1",
+                "description": "The amount of instances that this component should be scaled to. Default: 1. Must not be set if autoscaling is used.",
                 "default": 1,
                 "maximum": 9223372036854776000
               },
               "instance_size_slug": {
-                "description": "The instance size to use for this component. Default: `basic-xxs`",
+                "description": "The instance size to use for this component. Default: `apps-s-1vcpu-0.5gb`",
                 "type": "string",
                 "enum": [
-                  "basic-xxs",
-                  "basic-xs",
-                  "basic-s",
-                  "basic-m",
-                  "professional-xs",
-                  "professional-s",
-                  "professional-m",
-                  "professional-1l",
-                  "professional-l",
-                  "professional-xl"
+                  "apps-s-1vcpu-0.5gb",
+                  "apps-s-1vcpu-1gb-fixed",
+                  "apps-s-1vcpu-1gb",
+                  "apps-s-1vcpu-2gb",
+                  "apps-s-2vcpu-4gb",
+                  "apps-d-1vcpu-0.5gb",
+                  "apps-d-1vcpu-1gb",
+                  "apps-d-1vcpu-2gb",
+                  "apps-d-1vcpu-4gb",
+                  "apps-d-2vcpu-4gb",
+                  "apps-d-2vcpu-8gb",
+                  "apps-d-4vcpu-8gb",
+                  "apps-d-4vcpu-16gb",
+                  "apps-d-8vcpu-32gb"
                 ],
-                "default": "basic-xxs"
+                "default": "apps-s-1vcpu-0.5gb"
+              },
+              "autoscaling": {
+                "description": "Configuration for automatically scaling this component based on metrics.",
+                "type": "object",
+                "properties": {
+                  "min_instance_count": {
+                    "description": "The minimum amount of instances for this component. Must be less than max_instance_count.",
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 1
+                  },
+                  "max_instance_count": {
+                    "description": "The maximum amount of instances for this component. Must be more than min_instance_count.",
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 1
+                  },
+                  "metrics": {
+                    "description": "The metrics that the component is scaled on.",
+                    "type": "object",
+                    "properties": {
+                      "cpu": {
+                        "description": "Settings for scaling the component based on CPU utilization.",
+                        "type": "object",
+                        "properties": {
+                          "percent": {
+                            "description": "The average target CPU utilization for the component.",
+                            "type": "integer",
+                            "format": "uint32",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 80
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "termination": {
+                "type": "object",
+                "properties": {
+                  "grace_period_seconds": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "The number of seconds to wait between sending a TERM signal to a container and issuing a KILL which causes immediate shutdown. (Default 120)",
+                    "maximum": 600,
+                    "minimum": 1
+                  }
+                }
               }
             }
           }
@@ -1642,6 +1980,42 @@
                   }
                 },
                 "description": "Logtail configuration."
+              },
+              "open_search": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "description": "OpenSearch API Endpoint. Only HTTPS is supported. Format: `https://<host>:<port>`."
+                  },
+                  "basic_auth": {
+                    "type": "object",
+                    "properties": {
+                      "user": {
+                        "type": "string",
+                        "description": "Username to authenticate with."
+                      },
+                      "password": {
+                        "type": "string",
+                        "description": "Password for user defined in User."
+                      }
+                    },
+                    "description": "Configure Username and/or Password for Basic authentication.",
+                    "required": [
+                      "user",
+                      "password"
+                    ]
+                  },
+                  "index_name": {
+                    "type": "string",
+                    "default": "logs",
+                    "description": "The index name to use for the logs. If not set, the default index name is \"logs\"."
+                  }
+                },
+                "description": "OpenSearch configuration.",
+                "required": [
+                  "endpoint"
+                ]
               }
             },
             "title": "Configurations for external logging.",
@@ -1857,6 +2231,21 @@
         }
       },
       "description": "Specification for app ingress configurations."
+    },
+    "egress": {
+      "type": "object",
+      "description": "Specification for app egress configurations.",
+      "properties": {
+        "type": {
+          "title": "The app egress type.",
+          "type": "string",
+          "default": "AUTOASSIGN",
+          "enum": [
+            "AUTOASSIGN",
+            "DEDICATED_IP"
+          ]
+        }
+      }
     }
   },
   "required": [
