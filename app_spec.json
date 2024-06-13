@@ -2055,9 +2055,11 @@
               "UNSET",
               "MYSQL",
               "PG",
+              "MONGODB",
+              "KAFKA",
               "REDIS"
             ],
-            "description": "- MYSQL: MySQL\n- PG: PostgreSQL\n- REDIS: Redis"
+            "description": "- MYSQL: MySQL\n- PG: PostgreSQL\n- REDIS: Redis\n- MONGODB: MongoDB\n- KAFKA: Kafka"
           },
           "name": {
             "description": "The name. Must be unique across all components within the same app.",
